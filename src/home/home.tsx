@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Table, Modal, Button, Tag } from 'antd';
+import { Table, Modal, Tag } from 'antd';
 import dayjs from 'dayjs';
 import axios from 'axios';
 import './index.less';
@@ -80,7 +80,12 @@ export default class List extends React.Component {
       Eage: 0,
       Firefox: 0,
       Other: 0
-    }
+    },
+    userTypeNum: {
+      fund_num: 0,
+      stock_num: 0,
+      all_num: 0
+    },
   }
 
   componentDidMount() {
@@ -101,16 +106,25 @@ export default class List extends React.Component {
           Firefox: 0,
           Other: 0
         }
+
+        const userTypeNum: { fund_num: number, stock_num: number, all_num: number } = {
+          fund_num: 0,
+          stock_num: 0,
+          all_num: 0
+        }
+
         const dayTime = dayjs().format('YYYY-MM-DD');
         const dayTimeC = dayjs(dayTime).unix() * 1000;
         const nextDayTimeC = dayTimeC + 24 * 60 * 60 * 1000;
 
         response.data.data.forEach((item: any) => {
+          const content = JSON.parse(item.device_content);
           // 今日新增统计
           if (dayTimeC <= item.create_time && item.create_time < nextDayTimeC) {
             todatyCreat += 1
           }
           // 今日活跃统计
+
           if (dayTimeC <= item.last_login_time && item.last_login_time < nextDayTimeC) {
             todatyActive += 1
           }
@@ -132,13 +146,32 @@ export default class List extends React.Component {
             default:
               break;
           }
+
+          // 内容分析
+          if (content.fundListM || content.stockItemList) {
+
+            const hasFund = content.fundListM && content.fundListM.length > 0;
+            const hasStock = content.stockItemList && content.stockItemList.length > 0;
+
+            if (hasFund && !hasStock) {
+              userTypeNum.fund_num += 1;
+            }
+            if (hasStock && !hasFund) {
+              userTypeNum.stock_num += 1;
+            }
+            if (hasStock && hasFund) {
+              userTypeNum.all_num += 1;
+            }
+          }
+
         });
 
         this.setState({
           dataSource: response.data.data,
           todatyCreat,
           todatyActive,
-          browser_num
+          browser_num,
+          userTypeNum
         });
       })
       .catch((error) => {
@@ -155,14 +188,15 @@ export default class List extends React.Component {
 
 
   render() {
-    const { dataSource, visible, todatyCreat, todatyActive, browser_num } = this.state;
+    const { dataSource, visible, todatyCreat, todatyActive, browser_num, userTypeNum } = this.state;
 
     return <div>
       <div style={{ display: 'flex' }}>
         <div style={{ flex: 1 }}>
           <h2>使用情况</h2>
-          <p>今日新增数：<span>{todatyCreat}</span></p>
-          <p>今日活跃数：<span>{todatyActive}</span></p>
+          <p>总用户：<span>{dataSource.length}</span></p>
+          <p>今日新增用户：<span>{todatyCreat}</span></p>
+          <p>今日活用户：<span>{todatyActive}</span></p>
         </div>
         <div style={{ flex: 1 }}>
           <h2>浏览器</h2>
@@ -170,6 +204,12 @@ export default class List extends React.Component {
           <p>Eage: <span>{browser_num.Eage}</span></p>
           <p>Firefox: <span>{browser_num.Firefox}</span></p>
           <p>Other: <span>{browser_num.Other}</span></p>
+        </div>
+        <div style={{ flex: 1 }}>
+          <h2>用户偏好</h2>
+          <p>基金: <span>{userTypeNum.fund_num}</span> 人</p>
+          <p>股票: <span>{userTypeNum.stock_num}</span> 人</p>
+          <p>全用: <span>{userTypeNum.all_num}</span> 人</p>
         </div>
       </div>
       <Table
